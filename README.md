@@ -33,3 +33,5 @@ The data is a culmination of two dataset from cricksheet and howstat websites. B
 |triples	| threes taken |
 |fours 	| fours taken |
 |sixers| sixes scored |
+
+###### The Entire Notbook is available at : https://www.amitphadke.com/projects/moneyball/
