@@ -2,8 +2,8 @@
 
 This notebook is an inspiration from the Oakland Athletics' 2002 season analytics commonly known as Moneyball. I have applied a similar roadmap but in the Indian Premier League. Since T20 cricket is a fairly young sport there are not many baselines for its statistical analytics. So this is my approach in looking at the game from the eyes of a data scientist.    
 
-# Baseline Data 
-For the first task, we will use entire season statistics for every team in the IPL. This will include the runs scored by the team and runs conceded by the team. It will also include if the team made it to the playoffs or not as our dependant variable. I have built an entire database for IPL analysis which can be found at my kaggle page https://www.kaggle.com/amitphadke1/ipl-database. I have a subset of the database by some simple SQL queries and uploded the csv for the same. 
+# Data 
+For the first task, we will use entire season statistics for every team in the IPL. This will include the runs scored by the team and runs conceded by the team. It will also include if the team made it to the playoffs or not as our dependant variable. I have built an entire database for IPL analysis which can be found at my kaggle page https://www.kaggle.com/amitphadke1/ipl-database. I have a subset of the database by some simple SQL queries and uploded the data.csv for the same.
 
 # Methodology
 
