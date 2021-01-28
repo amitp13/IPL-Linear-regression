@@ -1,0 +1,374 @@
+---
+title: "Untitled"
+output: md_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+In 2002 Oakland Athletics' manager Billy Beane recruited the help of sports analyst Paul DePodesta. Their aim was to find new strategies to recruit players by discarding age old customs and looking at the game through math and come up with better metrics to recruit the right players that can help in winning games. But can we apply the same roadmap in the Indian Premier League. Being an Indian, Cricket is like a religion to me and even though its not my favoirite sport I want to use my other passion of Data science to analyze the gentleman's sport.
+
+### Methodology
+
+#### Tasks
+
+1. Evaluate differnce between runs scored and runs evaluated required to make it to the playoffs.
+2. Identify key metrics that contribute in acheiving the required runs difference.
+
+
+#### Task 1 - Evaluating Runs differential
+##### Data Collection
+
+For the first task, we will use entire season statistics for every team in the IPL. This will include the runs scored by the team and runs conceded by the team. It will also include if the team made it to the playoffs or not as our dependant variable. Now I have built an entire database for IPL and it is on my Kaggle profile. https://www.kaggle.com/amitphadke1/ipl-database
+
+```{r cars}
+library(ggplot2)
+library(tidyverse)
+library(gridExtra)
+library(corrplot)
+library(factoextra)
+library(stringr)
+library(data.table)
+library(reshape2)
+```
+
+```{r}
+data <- read.csv("C:\\Users\\phadk\\Desktop\\Work\\projects\\portfolio\\IPL\\data.csv")
+head(data)
+```
+##### Data Cleaning
+
+Before we start to analyze and explore our data, lets polish it by cleaning it. First convert rank to "playoff_status" with valies 0 and 1.
+
+```{r}
+data$rank[data$rank >= 1 & data$rank <= 4] <- 1
+data$rank[data$rank > 4] <- 0
+head(data)
+```
+```{r}
+setnames(data, old = c('rank'), new = c('playoffs'))
+```
+
+##### Setting up Baselines
+
+For every good analysis one of the most crucial thing is asking the right questions. With a sports analytics problem the most obvious question is:
+
+What is the goal of a team?
+
+The first thing that Beane and DePodesta wanted to know was how to they can make it to the playoff's. They argued that games at   the playoffs are much more unpredictable and hence hard to quantify. In the case of IPL there are only 3 playoff matches each     season hence that is much smaller dataset to analyze on. So the goal of the team would be making it to the playoffs
+
+So How does a team make it to the playoffs?
+
+Easy answer. Win more games. So then 
+
+How many wins does it take to make it to the playoffs?
+
+This is the first question we can answer with our data 
+
+```{r}
+m <- ggplot(data, aes(x = won,
+                      y = name,
+                      color = factor(playoffs))) +
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs")
+m + geom_vline(aes(xintercept = 7.7), color = "black", linetype = "dashed", size=1) + xlab("Wins") + ylab("Teams")
+```
+
+
+We see a graph when a team won approximately 8 games out of 14 games they make it to the playoffs. Now we need find how does a team win 8 games out of the 14 in the league stages.
+
+Now the easy answer is score more runs than your opponents. Lets test if this is is the issue for IPL. We will chart out the differece between runs scored and runs allowed by team in a season.
+
+
+```{r}
+data$RD <- data$runs_scored - data$runs_allowed
+
+ggplot(data, aes(x = RD,
+                y = won,
+                color = factor(playoffs))) +
+     geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs") + ylab("Matches Won")
+```
+
+A better way of finding the appropriate amount of Runs diffrential is building a regression model to predict wins with RD as a predictor variable.
+
+```{r}
+winsReg <- lm(won ~ RD, data = data)
+summary(winsReg)
+```
+
+From our summary we see that P-value is quite small as well as residuals are almost equidistant from each other. If we had our more data we might have gotten a adjusted R-squared as well.
+
+Here our regression equation is 
+
+matcheswon = y-Estimate + x-Estimate(RD)
+matcheswon = 7.055556 + RD(0.01074)
+
+Thus we have,
+
+RD = (matcheswon - 7.055556) / 0.01074
+
+From our EDA matcheswon can be substituted as 7.8. Therfore our equation becomes
+
+RD = (7.7-7.055556) / 0.01074
+RD ≈ 60
+   
+Let's add a threshold to 60 on x-axis of our RD vs won plot. 
+
+```{r}
+m1 <- ggplot(data, aes(x = RD,
+                y = won,
+                color = factor(playoffs))) +
+     geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs") + ylab("Matches Won")
+m1 + geom_vline(aes(xintercept = 60), color = "black", linetype = "dashed", size=1) + ylab("Wins") 
+```
+we can pull the threshold back a bit. Lets do 55. 
+
+```{r}
+m1 <- ggplot(data, aes(x = RD,
+                y = won,
+                color = factor(playoffs))) +
+     geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs") + ylab("Matches Won")
+m1 + geom_vline(aes(xintercept = 55), color = "black", linetype = "dashed", size=1) + ylab("Wins") 
+```
+
+45 looks like a good threshold to me. we can even pull back to 45 runs but any farther to the right, and there are too many red dots below the threshold. Any farther to the left, and there are too many black dots above the threshold. It's not an exact science, but the whole point of these calculations will simply to give a team the best possible chance. There is no guarentee that this comes along with the analysis.
+
+This brings us to our second task and second question.
+
+How can a team score 55+ runs more than his opponent?
+
+#### Task 2 - Identifying key metrics to estimate scored runs
+
+To answer this, Paul DePodesta and Billy Beane needed to know which stats were the most statistically significant when trying to predict the number of runs scored in a season. They performed this analysis on a large number of different stats, So lets collect those stats. 
+
+What we would need to predict runs is a batman's shot selection, i.e singles, doubles, threes and boundries. Next we need to look at a batsman's efficiency i.e strike rate and batting average. 
+
+#### Data Preparation
+
+So lets get our data ready
+
+Strike rate and batting average 
+
+```{r}
+#Getting teams batmans efficiency
+data$SR <- data$runs_scored/data$deliveries_faced
+data$BA <- data$runs_scored/data$wickets_lost
+
+#getting opponent efficiency
+data$OSR <- data$runs_allowed/data$deliveries_bowled
+data$OBA <- data$runs_allowed/data$wickets_taken
+
+```
+
+Getting percentage for runs made from each shots
+
+```{r}
+#Rate Getting team shot selctions
+data$SNR <-((data$singles)*1)/data$deliveries_faced
+data$DR <- ((data$doubles)*2)/data$deliveries_faced
+data$TR <- ((data$threes)*3)/data$deliveries_faced
+data$FR <- ((data$fours)*4)/data$deliveries_faced
+data$SXR <- ((data$sixers)*6)/data$deliveries_faced
+
+#Getting opponents shot selections
+data$OSNR <- ((data$singles_allowed)*1)/data$deliveries_bowled
+data$ODR <- ((data$doubles_allowed)*2)/data$deliveries_bowled
+data$OTR <- ((data$threes_allowed)*3)/data$deliveries_bowled
+data$OFR <- ((data$fours_allowed)*4)/data$deliveries_bowled
+data$OSXR <- ((data$sixers_allowed)*6)/data$deliveries_bowled
+```
+
+
+##### Exploratory Data Analysis
+
+Let's get our data ready for some analysis
+
+To start our analyis we want to look at how our metrics corelate with each other
+
+```{r}
+corr_data <- data %>% select(runs_scored,SR,BA,SNR,DR,TR,FR,SXR)
+cormat <- round(cor(corr_data),2)
+melted_cormat <- melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+```
+```{r}
+corr_data <- data %>% select(runs_scored,SR,BA,singles,doubles,threes,fours,sixers)
+cormat <- round(cor(corr_data),2)
+melted_cormat <- melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+```
+
+Now we must remeber that corelation is not causation. Lets look at our variables when they are passed through a regression map.
+
+```{r}
+plot1 <- ggplot(data, aes(x =SR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs")
+
+plot2 <- ggplot(data, aes(x =BA,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"), name = "Made Playoffs")
+
+grid.arrange(plot1, plot2,nrow=1, ncol=2)
+```
+Here strike rate is definately a good metric for predicting runs scored. Let's look at the percentages of shot selections 
+
+```{r}
+plot3 <- ggplot(data, aes(x =SNR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot4 <- ggplot(data, aes(x =DR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot5 <- ggplot(data, aes(x =TR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot6 <- ggplot(data, aes(x =FR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot7 <- ggplot(data, aes(x =SXR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+
+grid.arrange(plot3, plot4,plot5,plot6,plot7,nrow=2, ncol=3)
+```
+
+```{r}
+pie_data <- data.frame(
+  group=c('Singles','Doubles','Threes','Fours','Sixers'),
+  value=c(sum(data$SNR),sum(data$DR),sum(data$TR),sum(data$FR),sum(data$SXR))
+)
+ggplot(pie_data, aes(x="", y=value, fill=group)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  
+  theme_void()
+```
+
+The intersting thing here is singles contribute to most percentage of shot selection but they are not in regression with runs_scrored. Batsman's tend to select fours more because they are easy shots to select plus there is a less chance of getting out and also they score more.
+
+Lets check of number of singles and or runs made through singles and fours are in regression 
+```{r}
+plot8 <- ggplot(data, aes(x=singles,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot9 <- ggplot(data, aes(x=fours,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot10 <- ggplot(data, aes(x =sixers,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+
+plot11 <- ggplot(data, aes(x=SNR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot12 <- ggplot(data, aes(x =FR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+plot13 <- ggplot(data, aes(x =SXR,
+                 y = runs_scored))+
+geom_point() + scale_color_manual(values = c("#000000", "#FF2D00"))
+
+grid.arrange(plot8,plot9,plot10,plot11,plot12,plot13,nrow=2, ncol=3)
+
+```
+
+Thus we clearly see the number of singles, fours and sixers inafluesnce the scoring of runs. So lets run a regression model. But before that we will normalize our independant variable. 
+
+
+#### Linear Regression
+
+```{r}
+model_data <-  subset(data, season < 2020)
+
+runsScoredReg <- lm(runs_scored ~ SR+sixers+singles+fours, data = model_data)
+summary(runsScoredReg)
+```
+
+Since we discussed earlier sixer are risky shots to select for batsmen, hence their frequency is way low. So we will remove that as well. There is one more problem, 
+
+So even after removing sixers our adjusted R-squared is still good enough, Our std error is low and and p-value is also good. Lets do a similar regression model for runs_allowed.
+
+```{r}
+runsScoredReg <- lm(runs_scored ~ SR+singles+fours, data = model_data)
+summary(runsScoredReg)
+```
+
+```{r}
+runsAllowedReg <- lm(runs_allowed ~ OSR+fours_allowed+singles_allowed, data = model_data)
+summary(runsAllowedReg)
+```
+####Conclusion
+
+So both of our models have a strong adjusted R-sqaured and now only one question remains. 
+
+
+
+How much singles, strike_rates, and fours a team needs for a run diffrential of +45?
+
+
+Let's solve this with a use case, the team Mumbai Indians have made it to almost every playoff. Like Depodesta lets assume that the Mumbai Indians will roughly have the same stats as the 2019. So we will use their 2019 season as an example and predict how much they will score in 2020.
+
+The regression equation for runs allowed looks like this:
+
+
+RA = -666.6240 + 963.7276(OSR) +  3.0882(fours_allowed) + 1.5712(singles_allowed)
+Let's substitute the Indians' 2020 data in this formula
+
+RA = -666.6240 + 963.7276(1.2753) +  3.0882(190) + 1.5712(594)
+   = -666.6240 + 1227.9157 + 586.758 + 972.5728  
+   ≈ 2120
+   
+In 2020 the Indians are predicted to allow 2120 runs and if they need a run differential of +55 they will need to approximately score 2175 runs to make it to the playoffs. 
+
+This is where recruting come into play. Now mumbai Indian mangement would want to build a team that would have strike rate, no of singles and no of fours to a number which will score more than 2175 runs. Lets verify if our math actually pays off. 
+
+We will substitute the actual values for those metrics. In 2020 these were the Mumbai Indians' stats: 
+
+OSR : 1.2753
+singles_allowed : 594
+fours_allowed : 197
+
+SR: 1.4558
+singles : 611
+fours : 193
+
+
+1. Plugging in the values of the 2020 season to the runs allowed regression equation we get
+
+RA = -666.6240 + 963.7276(1.2753) +  3.0882(197) + 1.5712(594)
+   ≈ 2104
+   
+Actual runs_allowed by Mumbai Indians in 2020 were 2089
+
+2. Plugging in the values to the runs scored regression equation we get
+
+RA = -666.6240 + 988.1124(1.4558) +  2.7879(193) + 1.5214(611)
+   ≈ 2239
+   
+Actual runs_scored by Mumbai Indians in 2020 were 2293
+
+3. No of wins reqgression
+
+RD = 2293-2089 = 204
+
+W = 7.055556 + 204(0.01074)
+W = 9
+
+Actual games won by Mumbai Indians in 2020 were 9
+
+Almost all of our math adds up. While there are some accuracy issue due to the lack of data, we have successfully answered a lot of question about the game. 
